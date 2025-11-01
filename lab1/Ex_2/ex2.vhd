@@ -34,7 +34,7 @@ begin
                  "000" when r_rotated(0) = '1' else
                  "000";  
 				 
-    code <= std_logic_vector(unsigned(c) - unsigned(code_temp)) when unsigned(c) >= unsigned(code_temp) else
+    code <= std_logic_vector(to_unsigned(7, 3) - (unsigned(c) - unsigned(code_temp))) when unsigned(c) >= unsigned(code_temp) else
         std_logic_vector(to_unsigned(7, 3) + unsigned(c) - unsigned(code_temp));
 
 end arch1;

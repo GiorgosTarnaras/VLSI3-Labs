@@ -16,10 +16,23 @@ end array_slices_2D;
 
 architecture arch of array_slices_2D is 
 
-type type_2D is array (natural range <>, natural range <>) of std_logic; 
-signal my_array: type_2D(0 to 2, 3 downto 0);
+type type_2D is array (0 to 2, 3 downto 0) of std_logic; 
+signal my_array: type_2D;
+
 begin 
-	my_array <= (row1, row2, row3);
+	my_array(0, 3) <= row1(3);
+	my_array(0, 2) <= row1(2);
+	my_array(0, 1) <= row1(1);
+	my_array(0, 0) <= row1(0);
+	my_array(1, 3) <= row2(3);
+	my_array(1, 2) <= row2(2);
+	my_array(1, 1) <= row2(1);
+	my_array(1, 0) <= row2(0);
+	my_array(2, 3) <= row3(3);
+	my_array(2, 2) <= row3(2);
+	my_array(2, 1) <= row3(1);
+	my_array(2, 0) <= row3(0);
+	
 	slice1 <= my_array(0, 3);
 	slice2 <= my_array(1, 3) & my_array(1, 2);
 	slice3 <= my_array(2, 3) & my_array(2, 2) & my_array(2, 1) & my_array(2, 0);

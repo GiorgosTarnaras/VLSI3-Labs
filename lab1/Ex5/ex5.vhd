@@ -22,7 +22,7 @@ architecture arch5 of binary_to_bcd_12bit is
     signal d1_tens      : integer range 0 to 9;
     signal d0_units     : integer range 0 to 9;
 
-begin
+begin -- autos o tropos einai terma chat gpt kai mallon den tha perasei apo th synthesis prepei na to kanoyme me algorithmo poy uparxei sth wikipedia
 
     bin_int <= to_integer(unsigned(BIN_IN));
 

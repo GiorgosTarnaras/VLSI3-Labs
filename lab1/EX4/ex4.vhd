@@ -7,7 +7,7 @@ use ieee.math_real.all;
 entity cons_ones_counter_display is
 	generic (N: integer := 8); -- log2 of N
 	port(x: in std_logic_vector(N-1 downto 0);
-		 y: out std_logic_vector(integer(ceil(log(real(N)) / log(2.0))) - 1 downto 0);
+		 y: out std_logic_vector(integer(ceil(log(real(N+1)) / log(2.0))) - 1 downto 0);
 		 ssd: out std_logic_vector(6 downto 0));
 end cons_ones_counter_display; 
 
@@ -16,7 +16,7 @@ architecture arch of cons_ones_counter_display is
 
 type integer_vector is array (0 to N-1) of integer range 0 to N; 
 signal cons_ones, max_cons_ones : integer_vector;
-constant M : integer := integer(ceil(log(real(N)) / log(2.0)));
+constant M : integer := integer(ceil(log(real(N+1)) / log(2.0)));
 
 begin 
 	cons_ones(0) <= 1 when x(0) = '1' else 0;
@@ -48,5 +48,9 @@ begin
            "0110000" when max_cons_ones(N-1) = 14 else  
            "0111000" when max_cons_ones(N-1) = 15 else  
            "1111111";
+
+
+
+      
 
 end arch;

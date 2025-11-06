@@ -16,8 +16,6 @@ architecture testbench of consecutive_ones_counter_tb is
     signal x   : std_logic_vector(n-1 downto 0);
     signal y   : std_logic_vector (integer(ceil(log(real(n+1)) / log(2.0)))-1 downto 0);
     signal ssd : std_logic_vector(6 downto 0);
-    
-    -- Component declaration (FIXED: No generic)
     component consecutive_ones_counter is
         generic ( n : integer := 8 );  
         port ( x : in std_logic_vector (n-1 downto 0);

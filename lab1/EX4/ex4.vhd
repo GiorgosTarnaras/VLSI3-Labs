@@ -49,8 +49,4 @@ begin
            "0111000" when max_cons_ones(N-1) = 15 else  
            "1111111";
 
-
-
-      
-
 end arch;

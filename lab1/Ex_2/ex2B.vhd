@@ -35,6 +35,6 @@ begin
                  "000";  
 				 
     code <= std_logic_vector(unsigned(c) - (to_unsigned(7, 3) -unsigned(code_temp))) when unsigned(c) >= to_unsigned(7, 3) - unsigned(code_temp) else
-        std_logic_vector(unsigned(c) + (to_unsigned(7, 3) - unsigned(code_temp)));-- Hello World
+        std_logic_vector(unsigned(c) + (to_unsigned(7, 3) - unsigned(code_temp)));
 
 end arch1;

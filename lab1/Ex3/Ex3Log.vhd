@@ -12,7 +12,7 @@ end consecutive_ones_counter;
 
 architecture arch3 of consecutive_ones_counter is
 	type integer_vector is array (0 to n-1) of integer range 0 to n;
-	constant m : integer := integer(ceil(log(real(n)) / log(2.0)));
+	constant m : integer := integer(ceil(log(real(n+1)) / log(2.0)));
     signal count : integer_vector ;
 	signal en : std_logic_vector (n-1 downto 0);
 

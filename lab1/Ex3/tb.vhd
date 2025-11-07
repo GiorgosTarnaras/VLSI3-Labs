@@ -18,7 +18,7 @@ architecture testbench of consecutive_ones_counter_tb is
     signal ssd : std_logic_vector(6 downto 0);
     
     -- Component declaration (FIXED: No generic)
-    component consecutive_ones_counter is
+    component consecutive_ones_counter
         generic ( n : integer := 8 );  
         port ( x : in std_logic_vector (n-1 downto 0);
            y : out std_logic_vector (integer(ceil(log(real(n+1)) / log(2.0)))-1 downto 0);
@@ -28,21 +28,20 @@ architecture testbench of consecutive_ones_counter_tb is
 begin
 
     -- Instantiate Unit Under Test (UUT) (FIXED: No generic map)
-    UUT: consecutive_ones_counter
-        
-        
+    UUT: consecutive_ones_counter 
+     
         generic map(n => n)
         port map (
             x   => x,
             y   => y,
             ssd => ssd
         );
+        
 
     -- Self-checking stimulus process
     stim_proc: process
     begin
-        
-        
+    
         -- Test 0: All zeros -> count = 0
         x <= "00000000";
         wait for 10 ns;
@@ -78,11 +77,7 @@ begin
         -- Test 8: All 1s -> count = 8
         x <= "11111111";
         wait for 10 ns;
-      
-        
-        
-        
-        
+          
         wait;
         
     end process;

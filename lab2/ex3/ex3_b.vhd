@@ -10,8 +10,6 @@ entity parity_checker_rearrange_2 is
 		   parity_bit: out std_logic);
 end parity_checker_rearrange_2;
 
-
-
 architecture myarch of parity_checker_rearrange_2 is 
 type type_1Dx1D is array (0 to N) of std_logic_vector(N-1 downto 0); 
 signal temp: type_1Dx1D;

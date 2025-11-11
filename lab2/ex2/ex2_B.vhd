@@ -16,6 +16,12 @@ begin
     hex_int <= to_integer(unsigned(hex));
     ascii(7 downto 4) <= "0011" when hex_int < 10 else "0100";
     ascii(3 downto 0) <= std_logic_vector(to_unsigned(hex_int, 4)) when hex_int < 10 else
-                         std_logic_vector(to_unsigned(hex_int - 9, 4));
+                         "0001" when hex_int = 10 else
+                         "0010" when hex_int = 11 else
+                         "0011" when hex_int = 12 else
+                         "0100" when hex_int = 13 else
+                         "0101" when hex_int = 14 else
+                         "0110" ;
+
 
 end myarch;

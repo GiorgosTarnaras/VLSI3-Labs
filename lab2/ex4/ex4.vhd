@@ -21,7 +21,7 @@ entity arithmetic_unit is
 end entity arithmetic_unit;
 
 
-architecture concurrent_impl of arithmetic_unit is
+architecture arch4 of arithmetic_unit is
 
 
     signal op1, op2 : std_logic_vector(n - 1 downto 0);
@@ -101,4 +101,4 @@ begin
                ovf_signed       when "111", -- y=a+b+cin (signed)
                'X'              when others;
 
-end architecture concurrent_impl;
+end architecture arch4;

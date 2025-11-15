@@ -33,16 +33,16 @@ module tb_parity_checker_rearrange_2;
     //    end
         
         // Additional specific test cases
-        x = 8'b00000000; #20;
+        x = 8'b00000000; #30;
         $display("Test all zeros: x=%b y=%b parity=%b", x, y, parity_bit);
         
-        x = 8'b11111111; #20;
+        x = 8'b11111111; #30;
         $display("Test all ones:  x=%b y=%b parity=%b", x, y, parity_bit);
         
-        x = 8'b10101010; #20;
+        x = 8'b10101010; #30;
         $display("Test pattern:   x=%b y=%b parity=%b", x, y, parity_bit);
         
-        x = 8'b01010101; #20;
+        x = 8'b01010101; #30;
         $display("Test pattern:   x=%b y=%b parity=%b", x, y, parity_bit);
         
         $finish;

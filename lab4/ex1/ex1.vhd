@@ -21,19 +21,16 @@ architecture arch of led_mux is
     signal display_sel : unsigned(1 downto 0);
     
 begin
-    process(clk, reset)
+	process(clk, reset)
     begin
         if reset = '1' then
             counter <= (others => '0');
-            display_sel <= "00";
         elsif rising_edge(clk) then
             counter <= counter + 1;
-			
-            if counter = 0 then
-                display_sel <= display_sel + 1;
-            end if;
         end if;
     end process;
+
+    display_sel <= std_logic_vector(counter(15 downto 14));
     
     with display_sel select
         sseg <= in0 when "00",

@@ -24,7 +24,7 @@ begin
         elsif (rising_edge(clk)) then 
         	serial_in <= x;  
             if cnt = 8 then 
-            	serial_out <= std_logic_vector(unsigned(accum) + unsigned(serial_in));
+            	serial_out <= std_logic_vector(unsigned(accum) + unsigned(x));
             	cnt <= 1;
             	accum <= (others => '0');
             else
@@ -32,7 +32,7 @@ begin
                 cnt <= cnt + 1;
             end if;
         end if;
-        y <= serial_out(18 downto 3);
     end process;
-    
+    y <= serial_out(18 downto 3);
+
 end serial;

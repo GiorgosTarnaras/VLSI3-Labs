@@ -19,41 +19,52 @@ module tb_mean_value;
     );
 
     // Clock generation: 10ns period
-    always #5 clk = ~clk;
+    always #4 clk = ~clk;
 
     initial begin
         // Init
         clk = 0;
         rst = 1;
-        x   = 16'd0;
+        x   = 16'd0; #80;
 
         // Release reset
-        #20 rst = 0;
+        rst = 0; 
 
         // --- SAMPLE SEQUENCE ---
 
         // Push 8 samples (for first mean)
-        x = 16'd8;  #10;
-        x = 16'd10; #10;
-        x = 16'd8; #10;
-        x = 16'd10; #10;
-        x = 16'd8; #10;
-        x = 16'd10; #10;
-        x = 16'd8; #10;
-        x = 16'd10; #10;
+        x = 16'd8;  #8;
+        x = 16'd10; #8;
+        x = 16'd8; #8;
+        x = 16'd10; #8;
+        x = 16'd8; #8;
+        x = 16'd10; #8;
+        x = 16'd8; #8;
+        x = 16'd10; #8;
         //mean = 9
         // Another block of samples
-        x = 16'd10; #10;
-        x = 16'd10; #10;
-        x = 16'd10; #10;
-        x = 16'd10; #10;
-        x = 16'd10; #10;
-        x = 16'd10; #10;
-        x = 16'd10; #10;
-        x = 16'd10; #10;
+        x = 16'd10; #8;
+        x = 16'd10; #8;
+        x = 16'd10; #8;
+        x = 16'd10; #8;
+        x = 16'd10; #8;
+        x = 16'd10; #8;
+        x = 16'd10; #8;
+        x = 16'd10; #8;
+        
+        
+        
+        x = 16'd15; #8;
+        x = 16'd30; #8;
+        x = 16'd45; #8;
+        x = 16'd15; #8;
+        x = 16'd30; #8;
+        x = 16'd45; #8;
+        x = 16'd10; #8;
+        x = 16'd10; #8;
         //mean = 10
         // Finish simulation
-        #100 $stop;
+    
     end
 
 endmodule

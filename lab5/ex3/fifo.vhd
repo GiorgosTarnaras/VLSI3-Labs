@@ -37,7 +37,7 @@ begin
     w_en <= wr and (not full_int); 
     r_en <= rd and (not empty_int); 
 
-    fifo_data_out <= fifo_memory(to_integer(rd_ptr_reg));
+    
 
     proc_write_ptr: process(clk)
     begin
@@ -79,10 +79,14 @@ begin
     proc_memory: process(clk)
     begin
         if rising_edge(clk) then
-            if w_en = '1' then
+            if rst = '1' then
+                fifo_memory <= (others => (others => '0'));
+            elsif w_en = '1' then
                 fifo_memory(to_integer(wr_ptr_reg)) <= fifo_data_in;
+            elsif r_en = '1' then    
+                fifo_data_out <= fifo_memory(to_integer(rd_ptr_reg));
             end if;
         end if;
-    end process proc_memory;
+    end process;
 
 end arch;

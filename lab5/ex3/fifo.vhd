@@ -18,14 +18,14 @@ end fifo_synch;
 architecture arch of fifo_synch is
 
     type fifo_array_type is array (0 to 3) of std_logic_vector(7 downto 0);
-    signal fifo_memory : fifo_array_type;
+    signal fifo_memory : fifo_array_type := (others => (others => '0'));
     signal wr_ptr_reg : unsigned(1 downto 0) := (others => '0');
     signal rd_ptr_reg : unsigned(1 downto 0) := (others => '0');
     signal count_reg  : unsigned(2 downto 0) := (others => '0');
-    signal full_int   : std_logic;
-    signal empty_int  : std_logic;
-    signal w_en       : std_logic; 
-    signal r_en       : std_logic; 
+    signal full_int   : std_logic := '0';
+    signal empty_int  : std_logic := '1'; 
+    signal w_en       : std_logic;
+    signal r_en       : std_logic;
 
 begin
     full_int  <= '1' when count_reg = 4 else '0';

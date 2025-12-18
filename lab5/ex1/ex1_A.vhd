@@ -15,7 +15,7 @@ signal r_in: std_logic_vector(1 downto 0);
 
 begin 
     
-    process(clk)
+    REGS: process(clk)
     begin
         if rising_edge(clk) then 
             if rst = '1' then
@@ -26,15 +26,15 @@ begin
                 r_in <= r;
             end if;
         end if;
-    end process;
+    end process REGS;
 
-    process(pr_state, r_in)
+    FSM_LOGIC: process(pr_state, r_in)
     begin 
         case pr_state is
             when waitr => 
-                if r_in = "01" then nx_state <= grant0;
-                elsif r_in(1) = '1' then nx_state <= grant1;
-                else  nx_state <= waitr; 
+                if r_in = "00" then nx_state <= waitr;
+                elsif r_in = "01" then nx_state <= grant0;
+                else  nx_state <= grant1; 
                 end if;
             when grant0 => 
                 if r_in(0) = '1' then nx_state <= grant0; 
@@ -45,9 +45,9 @@ begin
                 else nx_state <= waitr;
                 end if;
         end case;
-    end process;
+    end process FSM_LOGIC;
 
-    process(pr_state)
+    OUTPUT_LOGIC: process(pr_state)
     begin 
         case pr_state is  
         when waitr => 
@@ -58,7 +58,7 @@ begin
             g <= "10";
         end case;
         
-    end process;
+    end process OUTPUT_LOGIC;
 
 
 end fsm;

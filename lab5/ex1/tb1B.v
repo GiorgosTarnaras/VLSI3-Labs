@@ -42,8 +42,7 @@ module arbiter_tb;
     r = 2'b11;
     #32;
 
-    // Both request
-    r = 2'b11;
+    r = 2'b00;
     #32;
 
     // Both request

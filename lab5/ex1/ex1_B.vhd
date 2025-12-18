@@ -12,47 +12,58 @@ architecture fsm of arbiter is
 type state_type is (waitr, grant0, grant1);
 signal pr_state, nx_state: state_type;
 signal r_in: std_logic_vector(1 downto 0);
+signal priority: std_logic;
 
 begin 
     
-    process(clk)
+    REGS: process(clk)
     begin
         if rising_edge(clk) then 
             if rst = '1' then
                 pr_state <= waitr;
                 r_in <= "00";
+                priority <= '1';
             else 
                 pr_state <= nx_state;
                 r_in <= r;
+
+                case pr_state is  
+                when waitr => 
+                    priority <= priority;
+                when grant0 => 
+                    priority <= '1';
+                when grant1 =>  
+                    priority <= '0';
+                end case;
+
             end if;
         end if;
-    end process;
+    end process REGS;
 
-    process(pr_state, r_in)
+    FSM_LOGIC: process(pr_state, r_in, priority)
     begin 
         case pr_state is
             when waitr => 
-                if r_in = "01" then nx_state <= grant0;
-                elsif r_in = "10" then nx_state <= grant1;
-                elsif r_in = "11" and nx_state = grant0 then nx_state <= grant1;
-                elsif r_in = "11" and nx_state = grant1 then nx_state <= grant0;
-                else  nx_state <= waitr; 
+                if r_in = "00" then nx_state <= waitr;
+                elsif r_in = "01" then nx_state <= grant0;
+                elsif  r_in = "10" then nx_state <= grant1;
+                elsif r_in = "11" and priority = '1' then nx_state <= grant1;
+                else nx_state <= grant0; 
                 end if;
             when grant0 => 
                 if r_in(0) = '1' then nx_state <= grant0; 
                 else nx_state <= waitr;
                 end if;
+              
             when grant1 =>  
                 if r_in(1) = '1' then nx_state <= grant1; 
                 else nx_state <= waitr;
                 end if;
+                
         end case;
-    end process;
+    end process FSM_LOGIC;
 
-
-
-
-    process(pr_state)
+    OUTPUT_LOGIC: process(pr_state)
     begin 
         case pr_state is  
         when waitr => 
@@ -63,7 +74,7 @@ begin
             g <= "10";
         end case;
         
-    end process;
+    end process OUTPUT_LOGIC;
 
 
 end fsm;

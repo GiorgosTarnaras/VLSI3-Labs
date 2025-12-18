@@ -28,7 +28,7 @@ module arbiter_tb;
     
     // Release reset
     rst = 0;
-    #8;
+    #80;
     
     // Request from agent 0
     r = 2'b01;

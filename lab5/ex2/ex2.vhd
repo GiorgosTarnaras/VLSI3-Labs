@@ -13,32 +13,37 @@ end FSM_timer;
 architecture fsm of FSM_timer is 
 type state_type is (A, B, C);
 signal pr_state, nx_state: state_type;
-signal x_in: std_logic ;
-signal t: natural range 0 to T2 ;
+signal x_in: std_logic;
+signal t, tmax: natural range 1 to T2;
 
 begin 
     
-    process(clk)
+    REGS: process(clk)
     begin
         if rising_edge(clk) then                
             pr_state <= nx_state;
             x_in <= x;
         end if;
-    end process;
+    end process REGS;
 
-    process(clk)
+    TIMER: process(clk, pr_state)
     begin 
+    
+        case pr_state is 
+            when A => tmax <= 1;
+            when others => tmax <= T2;
+        end case;
+
         if rising_edge(clk) then                   
-            if pr_state /= nx_state then 
-                t <= 0;
-            elsif t /= T2 then 
+            if t /= tmax then 
                 t <= t + 1;
+            else t <= 1;
             end if;
         end if;
-    end process;
+    end process TIMER;
 
 
-    process(pr_state, x_in, t)
+    FSM_LOGIC: process(pr_state, x_in, t)
     begin 
         case pr_state is
             when A => 
@@ -56,12 +61,10 @@ begin
                 else nx_state <= C;
                 end if;
         end case;
-    end process;
+    end process FSM_LOGIC;
 
 
-
-
-    process(pr_state)
+    OUTPUT_LOGIC: process(pr_state)
     begin 
         case pr_state is  
         when A => 
@@ -72,7 +75,7 @@ begin
             y <= '1';
         end case;
         
-    end process;
+    end process OUTPUT_LOGIC;
 
 
 end fsm;

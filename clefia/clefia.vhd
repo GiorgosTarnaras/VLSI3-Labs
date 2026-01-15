@@ -43,7 +43,7 @@ architecture rtl of CLEFIA is
     signal gfn_cnt : integer range 0 to 13;
     signal exp_cnt : integer range 0 to 10;
     
-    -- S-boxes from specification Table 1 and Table 2
+
     constant S0 : sbox_2d := (
         (x"57",x"49",x"d1",x"c6",x"2f",x"33",x"74",x"fb",x"95",x"6d",x"82",x"ea",x"0e",x"b0",x"a8",x"1c"),
         (x"28",x"d0",x"4b",x"92",x"5c",x"ee",x"85",x"b1",x"c4",x"0a",x"76",x"3d",x"63",x"f9",x"17",x"af"),
@@ -91,39 +91,22 @@ architecture rtl of CLEFIA is
         (x"01",x"08",x"02",x"0a"),(x"08",x"01",x"0a",x"02"),
         (x"02",x"0a",x"01",x"08"),(x"0a",x"02",x"08",x"01")
     );
-    
-    -- CON(128) constants from specification Table 8 (page 22)
-    -- All 60 constants: first 24 for GFN4,12, remaining 36 for key expansion
+
     constant CON_128 : con_array := (
-        -- CON 0-3 (for GFN round 0)
         x"f56b7aeb", x"994a8a42", x"96a4bd75", x"fa854521",
-        -- CON 4-7 (for GFN round 1)
         x"735b768a", x"1f7abac4", x"d5bc3b45", x"b99d5d62",
-        -- CON 8-11 (for GFN round 2)
         x"52d73592", x"3ef636e5", x"c57a1ac9", x"a95b9b72",
-        -- CON 12-15 (for GFN round 3)
         x"5ab42554", x"369555ed", x"1553ba9a", x"7972b2a2",
-        -- CON 16-19 (for GFN round 4)
         x"e6b85d4d", x"8a995951", x"4b550696", x"2774b4fc",
-        -- CON 20-23 (for GFN round 5-11 continue...)
         x"c9bb034b", x"a59a5a7e", x"88cc81a5", x"e4ed2d3f",
-        -- CON 24-27 (for key expansion)
         x"7c6f68e2", x"104e8ecb", x"d2263471", x"be07c765",
-        -- CON 28-31
         x"511a3208", x"3d3bfbe6", x"1084b134", x"7ca565a7",
-        -- CON 32-35
         x"304bf0aa", x"5c6aaa87", x"f4347855", x"9815d543",
-        -- CON 36-39
         x"4213141a", x"2e32f2f5", x"cd180a0d", x"a139f97a",
-        -- CON 40-43
         x"5e852d36", x"32a464e9", x"c353169b", x"af72b274",
-        -- CON 44-47
         x"8db88b4d", x"e199593a", x"7ed56d96", x"12f434c9",
-        -- CON 48-51
         x"d37b36cb", x"bf5a9a64", x"85ac9b65", x"e98d4d32",
-        -- CON 52-55
         x"7adf6582", x"16fe3ecd", x"d17e32c1", x"bd5f9f66",
-        -- CON 56-59
         x"50b63150", x"3c9757e7", x"1052b098", x"7c73b3a7"
     );
     
@@ -206,10 +189,8 @@ architecture rtl of CLEFIA is
         return mat_mult(M1, T0 & T1 & T2 & T3);
     end function;
     
-    -- DoubleSwap (Sigma) function from spec page 14
     function dswap(x : std_logic_vector(127 downto 0)) return std_logic_vector is
     begin
-        -- Y = X[7-63] | X[121-127] | X[0-6] | X[64-120]
         return x(120 downto 64) & x(6 downto 0) & x(127 downto 121) & x(63 downto 7);
     end function;
 
@@ -289,7 +270,7 @@ begin
     -- Datapath
     process(state, plaintext, T0, T1, T2, T3, WK0, WK1, WK2, WK3, RK, round_cnt, mode)
         variable F0o, F1o : std_logic_vector(31 downto 0);
-        variable v_T0, v_T1, v_T2, v_T3 : std_logic_vector(31 downto 0); -- Variables for rotation
+        variable v_T0, v_T1, v_T2, v_T3 : std_logic_vector(31 downto 0);
         variable rki : integer;
     begin
         -- Default hold
@@ -297,95 +278,82 @@ begin
         
         case state is
             when INIT_WHITE =>
-                if mode = '0' then  -- Encrypt
+                if mode = '0' then  -- Encrypt (Direct Map)
                     T0_n <= plaintext(127 downto 96);
                     T1_n <= plaintext(95 downto 64) xor WK0;
                     T2_n <= plaintext(63 downto 32);
                     T3_n <= plaintext(31 downto 0) xor WK1;
-                else  -- Decrypt
-                    T0_n <= plaintext(127 downto 96);
-                    T1_n <= plaintext(95 downto 64) xor WK2;
-                    T2_n <= plaintext(63 downto 32);
-                    T3_n <= plaintext(31 downto 0) xor WK3;
+                else  -- Decrypt (FIXED: Reverse of Final White)
+                    -- Maps C0->T3, C1->T0, C2->T1, C3->T2 (Inverse of Enc Final Swap)
+                    T0_n <= plaintext(95 downto 64) xor WK2; -- Input was C1, becomes T0
+                    T1_n <= plaintext(63 downto 32);         -- Input was C2, becomes T1
+                    T2_n <= plaintext(31 downto 0) xor WK3;  -- Input was C3, becomes T2
+                    T3_n <= plaintext(127 downto 96);        -- Input was C0, becomes T3
                 end if;
                 
             when ROUNDS =>
-                -- Use variables to handle immediate rotation logic
                 v_T0 := T0; v_T1 := T1; v_T2 := T2; v_T3 := T3;
 
                 if mode = '0' then  -- ENCRYPTION
-                    -- 1. Apply F-functions
                     F0o := F0(RK(round_cnt*2), v_T0);
                     F1o := F1(RK(round_cnt*2+1), v_T2);
-                    
-                    -- 2. XOR
                     v_T1 := v_T1 xor F0o;
                     v_T3 := v_T3 xor F1o;
-                    
-                    -- 3. Rotate Left: T0|T1|T2|T3 <- T1|T2|T3|T0 [cite: 76]
-                    T0_n <= v_T1; 
-                    T1_n <= v_T2; 
-                    T2_n <= v_T3; 
-                    T3_n <= v_T0;
+                    -- Left Rotate
+                    T0_n <= v_T1; T1_n <= v_T2; T2_n <= v_T3; T3_n <= v_T0;
                     
                 else  -- DECRYPTION
-                    -- 1. Inverse Rotation: T0|T1|T2|T3 <- T3|T0|T1|T2 
-                    -- We map current inputs to their pre-rotation positions
-                    v_T0 := T3; -- Was T0 before enc rotation
-                    v_T1 := T0; -- Was T1 before enc rotation
-                    v_T2 := T1; -- Was T2 before enc rotation
-                    v_T3 := T2; -- Was T3 before enc rotation
+                    -- Right Rotate (Inverse)
+                    v_T0 := T3; -- Pre-rot T0
+                    v_T1 := T0; -- Pre-rot T1
+                    v_T2 := T1; -- Pre-rot T2
+                    v_T3 := T2; -- Pre-rot T3
                     
-                    -- 2. Apply F-functions (using the keys in reverse order)
                     rki := (18 - 1 - round_cnt) * 2;
-                    -- Note: F0 uses v_T0, F1 uses v_T2. These are now the correct columns.
                     F0o := F0(RK(rki), v_T0);
                     F1o := F1(RK(rki+1), v_T2);
                     
-                    -- 3. XOR (Restoring the original values)
                     v_T1 := v_T1 xor F0o;
                     v_T3 := v_T3 xor F1o;
                     
-                    -- Assign to next state
                     T0_n <= v_T0; T1_n <= v_T1; T2_n <= v_T2; T3_n <= v_T3;
                 end if;
                 
             when FINAL_WHITE =>
-                -- [This part in your code was correct, keep it]
-                 if mode = '0' then 
-                    T0_n <= T3; -- Encryption Final Swap
-                    T1_n <= T0 xor WK2;
-                    T2_n <= T1;
-                    T3_n <= T2 xor WK3;
-                else 
-                    T0_n <= T3; -- Decryption Final Swap
-                    T1_n <= T0 xor WK0;
-                    T2_n <= T1;
-                    T3_n <= T2 xor WK1;
+                if mode = '0' then -- Encrypt (With Swap)
+                    T0_n <= T3;              -- C0 = T3
+                    T1_n <= T0 xor WK2;      -- C1 = T0 ^ WK2
+                    T2_n <= T1;              -- C2 = T1
+                    T3_n <= T2 xor WK3;      -- C3 = T2 ^ WK3
+                else -- Decrypt (FIXED: Direct Map to reverse Enc Init)
+                    T0_n <= T0;              -- P0 = T0
+                    T1_n <= T1 xor WK0;      -- P1 = T1 ^ WK0
+                    T2_n <= T2;              -- P2 = T2
+                    T3_n <= T3 xor WK1;      -- P3 = T3 ^ WK1
                 end if;
+
             when others =>
-                null; --
+                null;
         end case;
     end process;
 
-    -- Key schedule with proper CON constants
+    -- Key schedule (Unchanged)
     process(clk, rst)
         variable L0, L1, L2, L3 : std_logic_vector(31 downto 0);
-        variable F0o, F1o, tT1, tT3 : std_logic_vector(31 downto 0);
-        variable temp_L : std_logic_vector(127 downto 0);
+        variable F0o, F1o : std_logic_vector(31 downto 0);
     begin
         if rst = '1' then
             ks_done <= '0';
             L <= (others => '0');
             WK0 <= (others => '0'); WK1 <= (others => '0');
             WK2 <= (others => '0'); WK3 <= (others => '0');
-            -- Zero out RK...
+            -- Initialize RK to zeros to avoid latches if not written
+            RK <= (others => (others => '0'));
             
         elsif rising_edge(clk) then
             ks_done <= '0';
             
             if state = KEY_GFN then
-                -- [Your GFN logic here was fine, keep it]
                 if gfn_cnt = 0 then
                     L <= key;
                 else
@@ -398,46 +366,36 @@ begin
                 
             elsif state = KEY_EXPAND then
                 if exp_cnt = 0 then
-                   -- Init Whitening Keys
-                   WK0 <= key(127 downto 96); WK1 <= key(95 downto 64);
-                   WK2 <= key(63 downto 32);  WK3 <= key(31 downto 0);
-                   
-                   -- Final Rotation fix for L coming out of GFN
-                   -- GFN Output is Y0|Y1|Y2|Y3, we need to treat it as T3|T0|T1|T2
-                   -- So L <= T0|T1|T2|T3
-                   L <= L(31 downto 0) & L(127 downto 96) & L(95 downto 64) & L(63 downto 32);
-                   --L <= L;
+                    WK0 <= key(127 downto 96); WK1 <= key(95 downto 64);
+                    WK2 <= key(63 downto 32);  WK3 <= key(31 downto 0);
+                    -- Final Rotation fix for L coming out of GFN
+                    L <= L(31 downto 0) & L(127 downto 96) & L(95 downto 64) & L(63 downto 32);
                 elsif exp_cnt <= 9 then
-                   -- 1. T = L ^ CON
-                   L0 := L(127 downto 96) xor CON_128(24 + (exp_cnt-1)*4);
-                   L1 := L(95 downto 64)  xor CON_128(24 + (exp_cnt-1)*4 + 1);
-                   L2 := L(63 downto 32)  xor CON_128(24 + (exp_cnt-1)*4 + 2);
-                   L3 := L(31 downto 0)   xor CON_128(24 + (exp_cnt-1)*4 + 3);
-                   
-                   -- 2. Update L Register with DoubleSwap for NEXT cycle
-                   -- This removes the need for the loop
-                   L <= dswap(L); 
-                   
-                   -- 3. XOR T with Key if odd
-                   if (exp_cnt-1) mod 2 = 1 then
-                       L0 := L0 xor key(127 downto 96);
-                       L1 := L1 xor key(95 downto 64);
-                       L2 := L2 xor key(63 downto 32);
-                       L3 := L3 xor key(31 downto 0);
-                   end if;
-                   
-                   -- 4. Store RK
-                   RK((exp_cnt-1)*4)   <= L0;
-                   RK((exp_cnt-1)*4+1) <= L1;
-                   RK((exp_cnt-1)*4+2) <= L2;
-                   RK((exp_cnt-1)*4+3) <= L3;
-                   
+                    L0 := L(127 downto 96) xor CON_128(24 + (exp_cnt-1)*4);
+                    L1 := L(95 downto 64)  xor CON_128(24 + (exp_cnt-1)*4 + 1);
+                    L2 := L(63 downto 32)  xor CON_128(24 + (exp_cnt-1)*4 + 2);
+                    L3 := L(31 downto 0)   xor CON_128(24 + (exp_cnt-1)*4 + 3);
+                    
+                    L <= dswap(L); 
+                    
+                    if (exp_cnt-1) mod 2 = 1 then
+                        L0 := L0 xor key(127 downto 96);
+                        L1 := L1 xor key(95 downto 64);
+                        L2 := L2 xor key(63 downto 32);
+                        L3 := L3 xor key(31 downto 0);
+                    end if;
+                    
+                    RK((exp_cnt-1)*4)   <= L0;
+                    RK((exp_cnt-1)*4+1) <= L1;
+                    RK((exp_cnt-1)*4+2) <= L2;
+                    RK((exp_cnt-1)*4+3) <= L3;
                 else
-                   ks_done <= '1';
+                    ks_done <= '1';
                 end if;
             end if;
         end if;
     end process;
+    
     -- Output
     process(state, T0, T1, T2, T3)
     begin

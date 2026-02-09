@@ -32,9 +32,9 @@ architecture rtl of CLEFIA is
     -- Signals
     signal state, next_state : state_type;
     signal round_cnt : integer range 0 to 26;
-    signal gfn_cnt   : integer range 0 to 13;
-    signal exp_cnt   : integer range 0 to 10;
-    signal ks_done   : std_logic;
+    signal GeneralizedFeistelNetwork_counter   : integer range 0 to 13;
+    signal KeyExpansion_counter   : integer range 0 to 10;
+    signal KeyScheduling_done   : std_logic;
 
     -- Registers
     signal T0, T1, T2, T3 : std_logic_vector(31 downto 0); 

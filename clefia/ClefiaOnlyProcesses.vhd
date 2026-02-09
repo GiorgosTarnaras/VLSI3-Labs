@@ -34,7 +34,7 @@ architecture rtl of CLEFIA is
     signal round_cnt : integer range 0 to 26;
     signal GeneralizedFeistelNetwork_counter   : integer range 0 to 13;
     signal KeyExpansion_counter   : integer range 0 to 10;
-    signal KeyScheduling_done   : std_logic;
+    signal ks_done   : std_logic;
 
     -- Registers
     signal T0, T1, T2, T3 : std_logic_vector(31 downto 0); 
@@ -121,14 +121,14 @@ begin
     end process;
 
     -- Process 2: Next State Logic
-    process(state, start, ks_done, round_cnt, gfn_cnt)
+    process(state, start, ks_done, round_cnt, GeneralizedFeistelNetwork_counter)
     begin
         next_state <= state;
         case state is
             when IDLE => 
                 if start = '1' then next_state <= KEY_GFN; end if;
             when KEY_GFN => 
-                if gfn_cnt >= 12 then next_state <= KEY_EXPAND; end if;
+                if GeneralizedFeistelNetwork_counter >= 12 then next_state <= KEY_EXPAND; end if;
             when KEY_EXPAND => 
                 if ks_done = '1' then next_state <= INIT_WHITE; end if;
             when INIT_WHITE => 
@@ -147,8 +147,8 @@ begin
     begin
         if rst = '1' then
             round_cnt <= 0;
-            gfn_cnt   <= 0;
-            exp_cnt   <= 0;
+            GeneralizedFeistelNetwork_counter  <= 0;
+            KeyExpansion_counter   <= 0;
         elsif rising_edge(clk) then
             -- Round Counter
             if state = INIT_WHITE then
@@ -159,22 +159,22 @@ begin
             
             -- GFN Counter
             if state = KEY_GFN then
-                gfn_cnt <= gfn_cnt + 1;
+                GeneralizedFeistelNetwork_counter <= GeneralizedFeistelNetwork_counter + 1;
             else
-                gfn_cnt <= 0;
+                GeneralizedFeistelNetwork_counter <= 0;
             end if;
             
             -- Expansion Counter
             if state = KEY_EXPAND then
-                exp_cnt <= exp_cnt + 1;
+                KeyExpansion_counter <= KeyExpansion_counter + 1;
             else
-                exp_cnt <= 0;
+                KeyExpansion_counter <= 0;
             end if;
         end if;
     end process;
 
     -- Process 4: F0 Input Multiplexer
-    process(state, L_reg, T0, T3, gfn_cnt, RK, round_cnt, mode)
+    process(state, L_reg, T0, T3, GeneralizedFeistelNetwork_counter, RK, round_cnt, mode)
         variable rk_idx : integer;
     begin
         -- Default assignments to prevent latches and out-of-bounds
@@ -183,8 +183,8 @@ begin
 
         if state = KEY_GFN then
             f0_in_data <= L_reg(127 downto 96);
-            if gfn_cnt > 0 then
-                f0_in_rk <= CON_128((gfn_cnt-1)*2);
+            if GeneralizedFeistelNetwork_counter > 0 then
+                f0_in_rk <= CON_128((GeneralizedFeistelNetwork_counter-1)*2);
             end if;
         elsif state = ROUNDS then 
             -- ONLY calculate indices inside ROUNDS state
@@ -203,7 +203,7 @@ begin
     end process;
 
     -- Process 5: F1 Input Multiplexer (FIXED)
-    process(state, L_reg, T2, T1, gfn_cnt, RK, round_cnt, mode)
+    process(state, L_reg, T2, T1, GeneralizedFeistelNetwork_counter, RK, round_cnt, mode)
         variable rk_idx : integer;
     begin
         -- Default assignments
@@ -212,7 +212,7 @@ begin
 
         if state = KEY_GFN then
             f1_in_data <= L_reg(63 downto 32);
-            if gfn_cnt > 0 then
+            if GeneralizedFeistelNetwork_counter > 0 then
                 f1_in_rk <= CON_128((gfn_cnt-1)*2 + 1);
             end if;
         elsif state = ROUNDS then
@@ -370,7 +370,7 @@ begin
             ks_done <= '0';
             
             if state = KEY_GFN then
-                if gfn_cnt = 0 then
+                if GeneralizedFeistelNetwork_counter = 0 then
                     L_reg <= key;
                 else
                     L0 := L_reg(127 downto 96); 
@@ -381,13 +381,13 @@ begin
                 end if;
                 
             elsif state = KEY_EXPAND then
-                if exp_cnt = 0 then
+                if KeyExpansion_counter = 0 then
                     WK0 <= key(127 downto 96); WK1 <= key(95 downto 64);
                     WK2 <= key(63 downto 32);  WK3 <= key(31 downto 0);
                     -- Final Rotation fix for L coming out of GFN loop
                     L_reg <= L_reg(31 downto 0) & L_reg(127 downto 96) & L_reg(95 downto 64) & L_reg(63 downto 32);
-                elsif exp_cnt <= 9 then
-                    idx := (exp_cnt-1)*4;
+                elsif KeyExpansion_counter <= 9 then
+                    idx := (KeyExpansion_counter-1)*4;
                     
                     -- Calculate T (T = L xor CON)
                     T0 := L_reg(127 downto 96) xor CON_128(24 + idx);
@@ -401,7 +401,7 @@ begin
                     L_reg  <= Swap_Out;
                     
                     -- If i is odd, T = T xor Key
-                    if (exp_cnt-1) mod 2 = 1 then
+                    if (KeyExpansion_counter-1) mod 2 = 1 then
                         T0 := T0 xor key(127 downto 96);
                         T1 := T1 xor key(95 downto 64);
                         T2 := T2 xor key(63 downto 32);

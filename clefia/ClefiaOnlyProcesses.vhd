@@ -213,7 +213,7 @@ begin
         if state = KEY_GFN then
             f1_in_data <= L_reg(63 downto 32);
             if GeneralizedFeistelNetwork_counter > 0 then
-                f1_in_rk <= CON_128((gfn_cnt-1)*2 + 1);
+                f1_in_rk <= CON_128((GeneralizedFeistelNetwork_counter-1)*2 + 1);
             end if;
         elsif state = ROUNDS then
             -- ONLY calculate indices inside ROUNDS state

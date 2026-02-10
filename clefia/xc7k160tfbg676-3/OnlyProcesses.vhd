@@ -50,6 +50,15 @@ architecture rtl of CLEFIA is
     signal f1_sbox_out : std_logic_vector(31 downto 0);
     signal f0_out : std_logic_vector(31 downto 0); 
     signal f1_out : std_logic_vector(31 downto 0);
+    
+    signal reg_ciphertext : std_logic_vector(127 downto 0);
+    signal reg_done       : std_logic;
+    signal reg_valid      : std_logic;
+
+    attribute IOB : string;
+    attribute IOB of reg_ciphertext : signal is "TRUE";
+    attribute IOB of reg_done       : signal is "TRUE";
+    attribute IOB of reg_valid      : signal is "TRUE";
 
     -- Constants
     constant S0 : sbox_2d := (
@@ -475,17 +484,31 @@ begin
     end process;
 
     -- Process 12: Output Logic
-    process(state, T0, T1, T2, T3)
+    -- Process 12: Registered Output Logic (Fixed)
+    process(clk, rst)
     begin
-        if state = OUTPUT then
-            ciphertext <= T0 & T1 & T2 & T3;
-            done <= '1';
-            valid <= '1';
-        else
-            ciphertext <= (others => '0');
-            done <= '0';
-            valid <= '0';
+        if rst = '1' then
+            reg_ciphertext <= (others => '0');
+            reg_done       <= '0';
+            reg_valid      <= '0';
+        elsif rising_edge(clk) then
+            -- We update the output registers when we are in the OUTPUT state
+            if state = OUTPUT then
+                reg_ciphertext <= T0 & T1 & T2 & T3;
+                reg_done       <= '1';
+                reg_valid      <= '1';
+            else
+                -- Optional: hold value or clear. 
+                -- If you want it to act like a strobe, clear it here:
+                reg_done       <= '0'; 
+                reg_valid      <= '0';
+                -- reg_ciphertext can hold its value or zero out
+            end if;
         end if;
     end process;
-
+    
+    -- Connect registers to ports
+    ciphertext <= reg_ciphertext;
+    done       <= reg_done;
+    valid      <= reg_valid;
 end rtl;

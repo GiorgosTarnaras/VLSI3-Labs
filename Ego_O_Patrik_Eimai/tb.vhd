@@ -2,63 +2,50 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-entity tb_CLEFIA_128_CORE is
+entity tb_CLEFIA_PIPELINED is
 -- Testbench has no ports
-end tb_CLEFIA_128_CORE;
+end tb_CLEFIA_PIPELINED;
 
-architecture behavior of tb_CLEFIA_128_CORE is
+architecture behavior of tb_CLEFIA_PIPELINED is
 
     -- Component Declaration for the Unit Under Test (UUT)
-    component CLEFIA_128_CORE
+    component CLEFIA_PIPELINED
     Port ( 
         clk        : in  std_logic;
-        rst        : in  std_logic;
-        start      : in  std_logic;
-        is_decrypt : in  std_logic;
         key_in     : in  std_logic_vector (127 downto 0);
         data_in    : in  std_logic_vector (127 downto 0);
-        data_out   : out std_logic_vector (127 downto 0);
-        done       : out std_logic
+        data_out   : out std_logic_vector (127 downto 0)
     );
     end component;
 
     -- Inputs
-    signal clk        : std_logic := '0';
-    signal rst        : std_logic := '0';
-    signal start      : std_logic := '0';
-    signal is_decrypt : std_logic := '0';
-    signal key_in     : std_logic_vector(127 downto 0) := (others => '0');
-    signal data_in    : std_logic_vector(127 downto 0) := (others => '0');
+    signal clk     : std_logic := '0';
+    signal key_in  : std_logic_vector(127 downto 0) := (others => '0');
+    signal data_in : std_logic_vector(127 downto 0) := (others => '0');
 
     -- Outputs
-    signal data_out   : std_logic_vector(127 downto 0);
-    signal done       : std_logic;
+    signal data_out : std_logic_vector(127 downto 0);
 
     -- Clock period definitions
     constant clk_period : time := 10 ns;
     
-    -- Test Vectors from PDF Section 6 [cite: 610]
-    -- Key: ffeeddcc bbaa9988 77665544 33221100 [cite: 615]
+    -- Test Vectors (Standard CLEFIA-128)
+    -- Key: ffeeddcc bbaa9988 77665544 33221100
     constant TEST_KEY_VAL : std_logic_vector(127 downto 0) := x"ffeeddccbbaa99887766554433221100";
     
-    -- Plaintext: 00010203 04050607 08090a0b 0c0d0e0f [cite: 617]
+    -- Plaintext: 00010203 04050607 08090a0b 0c0d0e0f
     constant TEST_PT_VAL  : std_logic_vector(127 downto 0) := x"000102030405060708090a0b0c0d0e0f";
     
-    -- Ciphertext: de2bf2fd 9b74aacd f1298555 459494fd [cite: 619]
     constant TEST_CT_VAL  : std_logic_vector(127 downto 0) := x"de2bf2fd9b74aacdf1298555459494fd";
 
 begin
 
     -- Instantiate the Unit Under Test (UUT)
-    uut: CLEFIA_128_CORE PORT MAP (
-        clk        => clk,
-        rst        => rst,
-        start      => start,
-        is_decrypt => is_decrypt,
-        key_in     => key_in,
-        data_in    => data_in,
-        data_out   => data_out,
-        done       => done
+    uut: CLEFIA_PIPELINED PORT MAP (
+        clk      => clk,
+        key_in   => key_in,
+        data_in  => data_in,
+        data_out => data_out
     );
 
     -- Clock process definitions
@@ -73,86 +60,54 @@ begin
     -- Stimulus process
     stim_proc: process
     begin		
-        -- hold reset state for 100 ns.
-        rst <= '1';
+        -- 1. Hold Reset for 100 ns
+        key_in  <= (others => '0');
+        data_in <= (others => '0');
         wait for 100 ns;	
-        rst <= '0';
-        wait for clk_period*10;
-
-        -- ============================================================
-        -- TEST CASE 1: ENCRYPTION
-        -- ============================================================
-        report "Starting TEST CASE 1: Encryption";
         
-        -- Setup inputs
-        key_in     <= TEST_KEY_VAL;
-        data_in    <= TEST_PT_VAL;      -- Load Plaintext
-        is_decrypt <= '0';              -- Select Encryption Mode
-        start      <= '0';
-        wait for clk_period;
+        wait for clk_period; -- Wait for one clock edge after reset release
 
-        -- Start pulse
-        start <= '1';
-        wait for clk_period;
-        start <= '0';
+        -- ============================================================
+        -- TEST CASE 1: Single Block Encryption
+        -- ============================================================
+        report "Starting Pipeline Feed...";
+        
+        -- Feed Input (Valid at Rising Edge)
+        key_in  <= TEST_KEY_VAL;
+        data_in <= TEST_PT_VAL;
+        
+        -- The Core is pipelined with 21 cycles of latency
+        -- (12 cycles L-Gen + 9 cycles Rounds)
+        -- We wait for 21 clock cycles for the data to travel through.
+        
+        for i in 1 to 21 loop
+            wait for clk_period;
+        end loop;
 
-        -- Wait for processing to finish
-        wait until done = '1';
-        wait for clk_period; 
+        -- Wait one small delta to ensure output is stable before checking
+        wait for 1 ns; 
 
-        -- Check result
+        -- Check Result
         if data_out = TEST_CT_VAL then
-            report "Encryption PASSED: Output matches expected Ciphertext." severity note;
+            report "PASS: Output matches expected Ciphertext." severity note;
         else
-            report "Encryption FAILED: Output does NOT match expected Ciphertext." severity error;
-            -- Note: to_hstring requires VHDL-2008. If using older VHDL, comment out specific value reporting or use a helper function.
+            report "FAIL: Output mismatch." severity error;
             -- report "Expected: " & to_hstring(TEST_CT_VAL);
             -- report "Got:      " & to_hstring(data_out);
         end if;
 
-        
-        -- Idle wait between tests
-        wait for 100 ns;
-        
         -- ============================================================
-        -- TEST CASE 2: DECRYPTION
+        -- TEST CASE 2: Pipeline Throughput (Streaming)
         -- ============================================================
-        report "Starting TEST CASE 2: Decryption";
+        -- Feed new random data to prove pipeline accepts data every cycle
+        wait for clk_period;
+        data_in <= (others => '1'); -- New Data
+        wait for clk_period;
+        data_in <= (others => '0'); -- New Data
         
-        -- Reset UUT to clear internal state (optional but safer)
-        rst <= '1';
-        wait for clk_period * 2;
-        rst <= '0';
-        wait for clk_period * 5;
+        -- (Outputs for these would appear 21 cycles later)
 
-        -- Setup inputs
-        key_in     <= TEST_KEY_VAL;     -- Same Key
-        data_in    <= TEST_CT_VAL;      -- Load Ciphertext (result of encryption)
-        is_decrypt <= '1';              -- Select Decryption Mode
-        start      <= '0';
-        wait for clk_period;
-
-        -- Start pulse
-        start <= '1';
-        wait for clk_period;
-        start <= '0';
-
-        -- Wait for processing to finish
-        wait until done = '1';
-        wait for clk_period;
-
-        -- Check result
-        if data_out = TEST_PT_VAL then
-            report "Decryption PASSED: Output matches expected Plaintext." severity note;
-        else
-            report "Decryption FAILED: Output does NOT match expected Plaintext." severity error;
-            -- report "Expected: " & to_hstring(TEST_PT_VAL);
-            -- report "Got:      " & to_hstring(data_out);
-        end if;
-
-
-        -- End Simulation
-        wait for 100 ns;
+        wait for 200 ns;
         report "Simulation Finished.";
         wait;
     end process;

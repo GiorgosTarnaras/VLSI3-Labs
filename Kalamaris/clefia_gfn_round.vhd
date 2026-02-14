@@ -1,16 +1,16 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
-entity CLEFIA_ROUND is
+entity CLEFIA_GFN_ROUND is
     Port ( 
         data_in  : in  std_logic_vector (127 downto 0); 
         rk0      : in  std_logic_vector (31 downto 0);  
         rk1      : in  std_logic_vector (31 downto 0);  
         data_out : out std_logic_vector (127 downto 0)  
     );
-end CLEFIA_ROUND;
+end CLEFIA_GFN_ROUND;
 
-architecture structural of CLEFIA_ROUND is
+architecture structural of CLEFIA_GFN_ROUND is
 
     component CLEFIA_F0 is
         port(rk: in std_logic_vector(31 downto 0); x: in std_logic_vector(31 downto 0); y: out std_logic_vector(31 downto 0));

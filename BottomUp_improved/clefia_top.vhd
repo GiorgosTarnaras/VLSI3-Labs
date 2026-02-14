@@ -1,8 +1,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
--- Use the package defined in clefia_key_expand.vhd for the RK array type
-use work.CLEFIA_TYPES.ALL;
 
 entity CLEFIA_128_CORE is
     Port ( 
@@ -20,22 +18,25 @@ end CLEFIA_128_CORE;
 architecture Behavioral of CLEFIA_128_CORE is
 
     -- COMPONENT DECLARATIONS
+    type con_array_type is array (0 to 59) of std_logic_vector(31 downto 0);
     
-    component CLEFIA_KEY_EXPAND_128 is
-        Port ( 
-            K  : in  std_logic_vector (127 downto 0);
-            L  : in  std_logic_vector (127 downto 0);
-            WK : out std_logic_vector (127 downto 0);
-            RK : out rk_array
-        );
-    end component;
-    
-    component CLEFIA_L_GEN is
-        Port ( 
-            K : in  std_logic_vector (127 downto 0);
-            L : out std_logic_vector (127 downto 0)
-        );
-    end component;
+    constant CON : con_array_type := (
+        x"f56b7aeb", x"994a8a42", x"96a4bd75", x"fa854521", -- 0-3
+        x"735b768a", x"1f7abac4", x"d5bc3b45", x"b99d5d62", -- 4-7
+        x"52d73592", x"3ef636e5", x"c57a1ac9", x"a95b9b72", -- 8-11
+        x"5ab42554", x"369555ed", x"1553ba9a", x"7972b2a2", -- 12-15
+        x"e6b85d4d", x"8a995951", x"4b550696", x"2774b4fc", -- 16-19
+        x"c9bb034b", x"a59a5a7e", x"88cc81a5", x"e4ed2d3f", -- 20-23
+        x"7c6f68e2", x"104e8ecb", x"d2263471", x"be07c765", -- 24-27
+        x"511a3208", x"3d3bfbe6", x"1084b134", x"7ca565a7", -- 28-31
+        x"304bf0aa", x"5c6aaa87", x"f4347855", x"9815d543", -- 32-35
+        x"4213141a", x"2e32f2f5", x"cd180a0d", x"a139f97a", -- 36-39
+        x"5e852d36", x"32a464e9", x"c353169b", x"af72b274", -- 40-43
+        x"8db88b4d", x"e199593a", x"7ed56d96", x"12f434c9", -- 44-47
+        x"d37b36cb", x"bf5a9a64", x"85ac9b65", x"e98d4d32", -- 48-51
+        x"7adf6582", x"16fe3ecd", x"d17e32c1", x"bd5f9f66", -- 52-55
+        x"50b63150", x"3c9757e7", x"1052b098", x"7c73b3a7"  -- 56-59
+    );
 
     component CLEFIA_ROUND is
         Port ( 
@@ -55,12 +56,20 @@ architecture Behavioral of CLEFIA_128_CORE is
         );
     end component;
 
+    component CLEFIA_DOUBLE_SWAP is
+        Port ( input  : in  std_logic_vector (127 downto 0);
+               output : out std_logic_vector (127 downto 0));
+    end component;
+
     -- SIGNALS
 
     -- FSM State
-    type state_type is (IDLE, PRE_WHITE, ROUNDS, POST_WHITE, FINISH);
+    type state_type is (IDLE, L_GEN, KEY_EXP, DATA_PROC, FINISH);
     signal state : state_type;
 
+
+    type rk_array is array (0 to 35) of std_logic_vector(31 downto 0);
+    
     -- Data Registers
     signal reg_data : std_logic_vector(127 downto 0);
     signal reg_key  : std_logic_vector(127 downto 0);
@@ -68,7 +77,7 @@ architecture Behavioral of CLEFIA_128_CORE is
     signal round_ctr : integer range 0 to 18;
 
     -- Key Expansion Signals
-    signal L_inter : std_logic_vector(127 downto 0);
+    signal L, P : std_logic_vector(127 downto 0);
     signal WK_bus  : std_logic_vector(127 downto 0);
     signal RK_bus  : rk_array;
     
@@ -76,82 +85,60 @@ architecture Behavioral of CLEFIA_128_CORE is
     signal wk0, wk1, wk2, wk3 : std_logic_vector(31 downto 0);
 
     -- Round Logic Signals
-    signal round_in     : std_logic_vector(127 downto 0);
-    signal round_out_enc: std_logic_vector(127 downto 0);
-    signal round_out_dec: std_logic_vector(127 downto 0);
+    signal gfn_in     : std_logic_vector(127 downto 0);
+    signal gfn_out_enc: std_logic_vector(127 downto 0);
+    signal gfn_out_dec: std_logic_vector(127 downto 0);
     signal current_rk0  : std_logic_vector(31 downto 0);
     signal current_rk1  : std_logic_vector(31 downto 0);
+    signal double_swap_in : std_logic_vector(127 downto 0);
+    signal double_swap_out : std_logic_vector(127 downto 0);
 
 begin
 
-    -- =========================================================================
-    -- 1. Key Expansion (Combinatorial)
-    -- =========================================================================
-    -- Generate L from K
-    U_L_GEN: CLEFIA_L_GEN port map (
-        K => reg_key,
-        L => L_inter
-    );
-
-    -- Expand K and L into Round Keys (RK) and Whitening Keys (WK)
-    U_KEY_EXP: CLEFIA_KEY_EXPAND_128 port map (
-        K  => reg_key,
-        L  => L_inter,
-        WK => WK_bus,
-        RK => RK_bus
-    );
-    wk0 <= WK_bus(127 downto 96);
-    wk1 <= WK_bus(95 downto 64);
-    wk2 <= WK_bus(63 downto 32);
-    wk3 <= WK_bus(31 downto 0);
-
-    -- =========================================================================
-    -- 2. Round Instances
-    -- =========================================================================
-    -- We instantiate both Enc and Dec rounds and multiplex their inputs/outputs
-    -- based on the mode.
     
     U_ROUND_ENC: CLEFIA_ROUND port map (
-        data_in  => reg_data,
+        data_in  => gfn_in,
         rk0      => current_rk0,
         rk1      => current_rk1,
-        data_out => round_out_enc
+        data_out => gfn_out_enc
     );
 
     U_ROUND_DEC: CLEFIA_ROUND_INV port map (
-        data_in  => reg_data,
+        data_in  => gfn_in,
         rk0      => current_rk0,
         rk1      => current_rk1,
-        data_out => round_out_dec
+        data_out => gfn_out_dec
     );
 
-    -- =========================================================================
-    -- 3. Round Key Selection Logic
-    -- =========================================================================
-    process(round_ctr, mode_dec, RK_bus)
+    U_DOUBLE_SWAP: CLEFIA_DOUBLE_SWAP port map ( 
+        input => double_swap_in,
+        output => double_swap_out
+    );
+
+    process(state, round_ctr, mode_dec, RK_bus)
         variable idx_0 : integer;
         variable idx_1 : integer;
     begin
-        if mode_dec = '0' then
-            -- ENCRYPTION: RK indices are 0,1 -> 2,3 ... -> 34,35
-            idx_0 := 2 * round_ctr;
-            idx_1 := (2 * round_ctr) + 1;
-        else
-            -- Total 18 rounds (0 to 17). 
-            -- Round 0 uses RK34, RK35. Round 17 uses RK0, RK1.
-            -- Formula: 2 * (17 - round_ctr)
-            idx_0 := 2 * (17 - round_ctr);
-            idx_1 := (2 * (17 - round_ctr)) + 1;
-        end if;
 
-        -- Prevent array out of bounds during IDLE/WHITE states
-        if idx_0 < 0 then idx_0 := 0; end if; 
-        if idx_0 > 35 then idx_0 := 35; end if;
-        if idx_1 < 0 then idx_1 := 0; end if;
-        if idx_1 > 35 then idx_1 := 35; end if;
+        case state is  
+            when L_GEN =>
+                -- During L generation, RKs are actually the first 24 CON values
+                current_rk0 <= CON(round_ctr * 2);
+                current_rk1 <= CON(round_ctr * 2 + 1);
+                gfn_in <= L;
+            when DATA_PROC => 
+                if mode_dec = '0' then
+                    idx_0 := 2 * round_ctr;
+                    idx_1 := (2 * round_ctr) + 1;
+                else
+                    idx_0 := 2 * (17 - round_ctr);
+                    idx_1 := (2 * (17 - round_ctr)) + 1;
+                end if;
+                current_rk0 <= RK_bus(idx_0);
+                current_rk1 <= RK_bus(idx_1);
+                gfn_in <= 
+        end case;
 
-        current_rk0 <= RK_bus(idx_0);
-        current_rk1 <= RK_bus(idx_1);
     end process;
 
     -- =========================================================================

@@ -38,13 +38,9 @@ begin
     GEN_ROUNDS: for i in 0 to 11 generate
         signal rk_0 : std_logic_vector(31 downto 0);
         signal rk_1 : std_logic_vector(31 downto 0);
-        
-        -- Constant indices for this round
-        -- Round 0 uses CON0, CON1
         constant idx_0 : integer := 2 * i;
         constant idx_1 : integer := (2 * i) + 1;
     begin
-        -- Fetch Round Keys (Constants)
         U_CON_A: CON_TABLE port map (index => idx_0, con_val => rk_0);
         U_CON_B: CON_TABLE port map (index => idx_1, con_val => rk_1);
 
@@ -57,20 +53,6 @@ begin
             data_out => round_data(i+1)
         );
     end generate GEN_ROUNDS;
-
-    -- The specification defines GFN output Y as: Y0 | Y1 | Y2 | Y3 <- T3 | T0 | T1 | T2
-    --
-    -- The output of the loop (round_data(12)) comes from CLEFIA_ROUND, which outputs:
-    -- T1_updated | T2 | T3_updated | T0 (relative to the input of that round)
-    -- effectively performing the rotation T1, T2, T3, T0.
-    --
-    -- Let the 128-bit output of round 12 be O.
-    -- O(127 downto 96) = T1 (relative to start of step 3)
-    -- O(95 downto 64)  = T2
-    -- O(63 downto 32)  = T3
-    -- O(31 downto 0)   = T0
-    --
-    -- We want L = T0 | T1| T2 | T3
     
     L <= round_data(12)(31 downto 0) & -- T0
          round_data(12)(127 downto 96)  & -- T1

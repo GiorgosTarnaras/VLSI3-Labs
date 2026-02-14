@@ -1,0 +1,5 @@
+add_force {/CLEFIA_128_FSM/clk} -radix hex {1 0ns} {0 500ps} -repeat_every 1000ps
+add_force {/CLEFIA_128_FSM/start} -radix hex {1 0ns}
+add_force {/CLEFIA_128_FSM/key} -radix hex {ffeeddccbbaa99887766554433221100 0ns}
+add_force {/CLEFIA_128_FSM/plaintext} -radix hex {000102030405060708090a0b0c0d0e0f 0ns}
+

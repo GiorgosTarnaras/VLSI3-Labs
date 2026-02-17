@@ -1,0 +1,62 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+
+entity CLEFIA_INV_RK_GEN is
+    Port ( 
+        L_curr  : in  STD_LOGIC_VECTOR (127 downto 0); -- Current value of L
+        K       : in  STD_LOGIC_VECTOR (127 downto 0); -- Master Key K
+        counter : in  integer range 0 to 8;            -- Loop index 'i' from algorithm
+        RK_Row  : out STD_LOGIC_VECTOR (127 downto 0); -- Output RK for this row (e.g. RK0-3)
+        L_next  : out STD_LOGIC_VECTOR (127 downto 0)  -- Sigma(L) for the next round
+    );
+end CLEFIA_INV_RK_GEN;
+
+architecture Behavioral of CLEFIA_INV_RK_GEN is
+
+    component CON_TABLE
+        Port ( index   : in  integer range 0 to 59;
+               con_val : out std_logic_vector (31 downto 0));
+    end component;
+
+    component CLEFIA_INV_DOUBLE_SWAP
+        Port ( input   : in  std_logic_vector (127 downto 0);
+               output  : out std_logic_vector (127 downto 0));
+    end component;
+
+    signal con0, con1, con2, con3 : std_logic_vector(31 downto 0);
+    signal con_full : std_logic_vector(127 downto 0);
+    signal T        : std_logic_vector(127 downto 0);
+    signal base_idx : integer range 0 to 59;
+
+begin
+
+    base_idx <= 24 + (4 * counter);
+
+    C0: CON_TABLE port map (index => base_idx,     con_val => con0);
+    C1: CON_TABLE port map (index => base_idx + 1, con_val => con1);
+    C2: CON_TABLE port map (index => base_idx + 2, con_val => con2);
+    C3: CON_TABLE port map (index => base_idx + 3, con_val => con3);
+
+    con_full <= con0 & con1 & con2 & con3;
+
+    T <= L_curr xor con_full;
+
+    
+    SIGMA_L: CLEFIA_INV_DOUBLE_SWAP port map (
+        input  => L_curr, 
+        output => L_next
+    );
+
+    process(T, K, counter)
+    begin
+        if (counter mod 2 /= 0) then
+            
+            RK_Row <= T xor K;
+        else
+            RK_Row <= T;
+        end if;
+    end process;
+
+end Behavioral;
